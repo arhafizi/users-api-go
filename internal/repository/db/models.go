@@ -8,6 +8,10 @@ import (
 	"database/sql"
 )
 
+type SchemaMigration struct {
+	Version string `db:"version" json:"version"`
+}
+
 type User struct {
 	ID           int32        `db:"id" json:"id"`
 	Username     string       `db:"username" json:"username"`

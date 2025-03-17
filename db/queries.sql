@@ -12,6 +12,11 @@ WHERE id = $1 AND deleted_at IS NULL;
 SELECT * FROM users
 WHERE username = $1 AND deleted_at IS NULL;
 
+
+-- name: GetUserByEmail :one
+SELECT * FROM users
+WHERE email = $1 AND deleted_at IS NULL;
+
 -- name: UpdateUserFull :one
 UPDATE users
 SET username = $2, email = $3, full_name = $4, password_hash = $5, updated_at = CURRENT_TIMESTAMP

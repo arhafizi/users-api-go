@@ -1,8 +1,8 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    schema: "internal/repository/sqlc/schema.sql"
-    queries: "internal/repository/sqlc/queries.sql"
+    schema: "db/schema.sql"
+    queries: "db/queries.sql"
     gen:
       go:
         package: "dbCtx"

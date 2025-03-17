@@ -5,8 +5,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupUserRoutes(router *gin.Engine, h *handlers.UserHandler) {
-	users := router.Group("/api/users")
+func SetupUserRoutes(router *gin.RouterGroup, h *handlers.UserHandler) {
+	users := router.Group("/users")
 	{
 		users.GET("", h.GetAll)
 		users.GET("/:id", h.GetByID)

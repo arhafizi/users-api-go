@@ -1,5 +1,4 @@
--- schema.sql
-CREATE DATABASE usersdb ;
+-- migrate:up
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -10,3 +9,6 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
 );
+
+-- migrate:down
+DROP TABLE users;

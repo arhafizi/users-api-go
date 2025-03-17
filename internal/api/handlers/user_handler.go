@@ -1,217 +1,175 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
+	"example.com/api/internal/api/responses"
+	"example.com/api/internal/api/validation"
 	dbCtx "example.com/api/internal/repository/db"
 	"example.com/api/internal/services"
+	"example.com/api/pkg/logging"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
 type UserHandler struct {
-	srv services.IUserService
+	service services.IServiceManager
+	logger  logging.ILogger
 }
 
-func NewUserHandler(s services.IUserService) *UserHandler {
+func NewUserHandler(s services.IServiceManager, logger logging.ILogger) *UserHandler {
 	return &UserHandler{
-		srv: s,
+		service: s,
+		logger:  logger,
 	}
 }
 
 func (h *UserHandler) Create(c *gin.Context) {
 	var req dbCtx.CreateUserParams
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid request body",
-			"status":  "fail",
-			"data":    nil,
+		h.logger.Error(logging.Validation, logging.Api, "Invalid request body", map[logging.ExtraKey]any{
+			logging.ErrorMessage: err.Error(),
+			logging.Path:         c.Request.URL.Path,
+			logging.Method:       c.Request.Method,
 		})
+
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+			validationErrors := validation.GetValidationErrors(err)
+			responses.BadRequest(c, "Invalid request body", validationErrors)
+			return
+		}
+
+		responses.BadRequest(c, "Invalid request body", err)
 		return
 	}
 
-	user, err := h.srv.Create(c.Request.Context(), req)
+	user, err := h.service.User().Create(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to create user",
-			"status":  "fail",
-			"data":    nil,
+		h.logger.Error(logging.Internal, logging.FailedToCreateUser, "Failed to create user", map[logging.ExtraKey]any{
+			logging.ErrorMessage: err.Error(),
+			logging.Path:         c.Request.URL.Path,
+			logging.Method:       c.Request.Method,
 		})
+		responses.InternalServerError(c, "Failed to create user")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "User created successfully",
-		"status":  "success",
-		"data":    user,
+	h.logger.Info(logging.Internal, logging.Api, "User created successfully", map[logging.ExtraKey]any{
+		logging.Path:   c.Request.URL.Path,
+		logging.Method: c.Request.Method,
 	})
+
+	responses.Created(c, "User created successfully", user)
 }
 
 func (h *UserHandler) GetByID(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid user ID, must be an integer",
-			"status":  "fail",
-			"data":    nil,
-		})
+		responses.BadRequest(c, "Invalid user ID, must be an integer", nil)
 		return
 	}
 
-	user, err := h.srv.GetByID(c.Request.Context(), int32(id))
+	user, err := h.service.User().GetByID(c.Request.Context(), int32(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": "User not found",
-			"status":  "fail",
-			"data":    nil,
-		})
+		responses.NotFound(c, "User not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "User retrieved successfully",
-		"status":  "success",
-		"data":    user,
-	})
+	responses.OK(c, "User retrieved successfully", user)
 }
 
 func (h *UserHandler) GetAll(c *gin.Context) {
 	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid limit parameter",
-			"status":  "fail",
-			"data":    nil,
-		})
+		responses.BadRequest(c, "Invalid limit parameter", nil)
 		return
 	}
 
 	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid offset parameter",
-			"status":  "fail",
-			"data":    nil,
-		})
+		responses.BadRequest(c, "Invalid offset parameter", nil)
 		return
 	}
 
-	users, err := h.srv.GetAll(c.Request.Context(), dbCtx.ListUsersParams{
+	users, err := h.service.User().GetAll(c.Request.Context(), dbCtx.ListUsersParams{
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to retrieve users",
-			"status":  "fail",
-			"data":    nil,
-		})
+		responses.InternalServerError(c, "Failed to retrieve users")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Users retrieved successfully",
-		"status":  "success",
-		"data":    users,
-	})
+	responses.OK(c, "Users retrieved successfully", users)
 }
 
 func (h *UserHandler) UpdateFull(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid user ID, must be an integer",
-			"status":  "fail",
-			"data":    nil,
-		})
+		responses.BadRequest(c, "Invalid user ID, must be an integer", nil)
 		return
 	}
 
 	var req dbCtx.UpdateUserFullParams
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid request body",
-			"status":  "fail",
-			"data":    nil,
-		})
+		responses.BadRequest(c, "Invalid request body", err)
 		return
 	}
 
 	req.ID = int32(id)
-	user, err := h.srv.UpdateFull(c.Request.Context(), req)
+	user, err := h.service.User().UpdateFull(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to update user",
-			"status":  "fail",
-			"data":    nil,
-		})
+		if user == nil {
+			responses.NotFound(c, "User not found")
+			return
+		}
+		responses.InternalServerError(c, "Failed to update user")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "User updated successfully",
-		"status":  "success",
-		"data":    user,
-	})
+	responses.OK(c, "User updated successfully", user)
 }
 
 func (h *UserHandler) UpdatePartial(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid user ID, must be an integer",
-			"status":  "fail",
-			"data":    nil,
-		})
+		responses.BadRequest(c, "Invalid user ID, must be an integer", nil)
 		return
 	}
 
 	var req dbCtx.UpdateUserPartialParams
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid request body",
-			"status":  "fail",
-			"data":    nil,
-		})
+		responses.BadRequest(c, "Invalid request body", err)
 		return
 	}
 
 	req.ID = int32(id)
-	user, err := h.srv.UpdatePartial(c.Request.Context(), req)
+	user, err := h.service.User().UpdatePartial(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to partially update user",
-			"status":  "fail",
-			"data":    nil,
-		})
+		if user == nil {
+			responses.NotFound(c, "User not found")
+			return
+		}
+		responses.InternalServerError(c, "Failed to partially update user")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "User partially updated successfully",
-		"status":  "success",
-		"data":    user,
-	})
+	responses.OK(c, "User partially updated successfully", user)
 }
 
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid user ID, must be an integer",
-			"status":  "fail",
-			"data":    nil,
-		})
+		responses.BadRequest(c, "Invalid user ID, must be an integer", nil)
 		return
 	}
 
-	err = h.srv.SoftDelete(c.Request.Context(), int32(id))
+	err = h.service.User().SoftDelete(c.Request.Context(), int32(id))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to delete user",
-			"status":  "fail",
-			"data":    nil,
-		})
+		responses.InternalServerError(c, "Failed to delete user")
 		return
 	}
 

@@ -1,0 +1,11 @@
+.git
+.github
+.gitignore
+*.md
+logs/
+tmp/
+.env
+.env.*
+.air.toml
+*.log
+**/.DS_Store
