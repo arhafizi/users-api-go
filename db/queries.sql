@@ -34,10 +34,10 @@ SET
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 
--- name: SoftDeleteUser :exec
+-- name: SoftDeleteUser :execrows
 UPDATE users
 SET deleted_at = CURRENT_TIMESTAMP
-WHERE id = $1;
+WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListUsers :many
 SELECT * FROM users

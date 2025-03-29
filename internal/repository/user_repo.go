@@ -19,5 +19,5 @@ type IUserRepo interface {
 
 	UpdatePartial(ctx Ctx, arg dbCtx.UpdateUserPartialParams) (User, error)
 
-	SoftDelete(ctx Ctx, id int32) error
+	SoftDelete(ctx Ctx, id int32) (int64, error) 
 }

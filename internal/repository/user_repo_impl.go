@@ -33,7 +33,7 @@ func (u *UserRepo) GetByEmail(ctx Ctx, username string) (User, error) {
 	return u.q.GetUserByEmail(ctx, username)
 }
 
-func (u *UserRepo) SoftDelete(ctx Ctx, id int32) error {
+func (u *UserRepo) SoftDelete(ctx Ctx, id int32) (int64, error) {
 	return u.q.SoftDeleteUser(ctx, id)
 }
 

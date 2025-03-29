@@ -151,15 +151,18 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 	return items, nil
 }
 
-const softDeleteUser = `-- name: SoftDeleteUser :exec
+const softDeleteUser = `-- name: SoftDeleteUser :execrows
 UPDATE users
 SET deleted_at = CURRENT_TIMESTAMP
-WHERE id = $1
+WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) SoftDeleteUser(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, softDeleteUser, id)
-	return err
+func (q *Queries) SoftDeleteUser(ctx context.Context, id int32) (int64, error) {
+	result, err := q.db.ExecContext(ctx, softDeleteUser, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const updateUserFull = `-- name: UpdateUserFull :one
@@ -213,10 +216,10 @@ RETURNING id, username, email, full_name, password_hash, created_at, updated_at,
 
 type UpdateUserPartialParams struct {
 	ID           int32  `db:"id" json:"id"`
-	Username     string `db:"username" json:"username"`
-	Email        string `db:"email" json:"email"`
-	FullName     string `db:"full_name" json:"fullName"`
-	PasswordHash string `db:"password_hash" json:"passwordHash"`
+	Username     *string `db:"username" json:"username"`
+	Email        *string `db:"email" json:"email"`
+	FullName     *string `db:"full_name" json:"fullName"`
+	PasswordHash *string `db:"password_hash" json:"passwordHash"`
 }
 
 func (q *Queries) UpdateUserPartial(ctx context.Context, arg UpdateUserPartialParams) (User, error) {
