@@ -39,17 +39,62 @@ services:
   # redis_container:
   #   image: redis:7-alpine
   #   command: redis-server --requirepass password
+  
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    networks:
+      - app-network
+    
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   ports:
+  #     - "3000:3000"
   #   volumes:
-  #     - redis-data:/data
+  #     - grafana_data:/var/lib/grafana
   #   networks:
   #     - app-network
-  #   ports:
-  #     - "6379:6379"
+  #   depends_on:
+  #     - prometheus
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #     - GF_SECURITY_ADMIN_USER=admin
 
 volumes:
   postgres-data:
   app-logs:  
-  # redis-data:
+  prometheus_data:
+  # grafana_data:    
+
+
 
 networks:
   app-network:

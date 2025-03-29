@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'gin-api'
+    static_configs:
+      - targets: ['app:5000']
+    # metrics_path: '/metrics'
+    # scrape_timeout: 10s
+    # scheme: 'http'
+    # honor_labels: true
+    # metric_relabel_configs:
+    #   - source_labels: [__name__]
+    #     regex: 'go_.*|http_.*|db_.*|node_.*'
+    #     action: keep
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 5s

@@ -4,12 +4,14 @@ import (
 	"time"
 
 	"example.com/api/pkg/logging"
+	"example.com/api/pkg/metrics"
 	"github.com/gin-gonic/gin"
 )
 
 func LoggingMiddleware(logger logging.ILogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
+		metrics.TotalReq.Inc()
 
 		c.Next()
 
