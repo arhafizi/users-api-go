@@ -28,7 +28,7 @@ func NewServiceManager(r repository.IRepositoryManager, l logging.ILogger, jwt c
 
 func (s *ServiceManager) User() IUserService {
 	if s.userSvc == nil {
-		s.userSvc = NewUserService(s.repoManager, s.logger)
+		s.userSvc = NewUserService(s.repoManager, s.logger, s.Hash())
 	}
 	return s.userSvc
 }

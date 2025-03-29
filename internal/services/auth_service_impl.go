@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"example.com/api/config"
+	dto "example.com/api/internal/contracts"
 	dbCtx "example.com/api/internal/repository/db"
 	"example.com/api/internal/services/hashing"
 	"example.com/api/pkg/logging"
@@ -75,27 +76,27 @@ func (s *AuthService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
 }
 
 func (s *AuthService) Authenticate(ctx context.Context, email, password string) (*dbCtx.User, error) {
+	// email = strings.ToLower(email) //
 	user, err := s.userService.GetByEmail(ctx, email)
 	if err != nil {
-		return nil, errors.New("failed to fetch user")
+		// s.logger.Error("Failed to fetch user by email: %v", err) //
+		return nil, errors.New("invalid credentials, fetch")
 	}
 
-	if err = s.hashService.Compare(user.PasswordHash, password); err != nil {
-		return nil, errors.New("invalid credentials")
+	if err := s.hashService.Compare(user.PasswordHash, password); err != nil {
+		// s.logger.Error("Password comparison failed: %v", err)
+		return nil, errors.New(err.Error())
 	}
 
 	return user, nil
 }
 
-func (s *AuthService) RegisterUser(ctx context.Context, name, email, password string) (*dbCtx.User, string, string, error) {
-	hashedPassword, err := s.hashService.Hash(password)
-	if err != nil {
-		return nil, "", "", fmt.Errorf("failed to hash password: %w", err)
-	}
-	createParams := dbCtx.CreateUserParams{
-		Username:     name,
-		Email:        email,
-		PasswordHash: hashedPassword,
+func (s *AuthService) RegisterUser(ctx context.Context, args dto.Register) (*dto.UserResponse, string, string, error) {
+	createParams := dto.CreateUserReq{
+		Username: args.Name,
+		FullName: "",
+		Email:    args.Email,
+		Password: args.Password,
 	}
 	user, err := s.userService.Create(ctx, createParams)
 	if err != nil {

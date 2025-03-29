@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 
+	dto "example.com/api/internal/contracts"
 	dbCtx "example.com/api/internal/repository/db"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -16,5 +17,5 @@ type IAuthService interface {
 
 	Authenticate(ctx context.Context, email, password string) (*dbCtx.User, error)
 
-	RegisterUser(ctx context.Context, name, email, password string) (*dbCtx.User, string, string, error)
+	RegisterUser(ctx context.Context, args dto.Register) (*dto.UserResponse, string, string, error)
 }

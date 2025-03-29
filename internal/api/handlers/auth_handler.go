@@ -40,7 +40,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	user, err := h.authService.Authenticate(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
-		responses.Unauthorized(c, "Invalid credentials")
+		// responses.Unauthorized(c, "Invalid credentials")
+		responses.Unauthorized(c, err.Error())
 		return
 	}
 
@@ -79,14 +80,14 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, accessToken, refreshToken, err := h.authService.RegisterUser(c.Request.Context(), req.Name, req.Email, req.Password)
+	user, accessToken, refreshToken, err := h.authService.RegisterUser(c.Request.Context(), req)
 	if err != nil {
 		h.logger.Error(logging.Internal, logging.FailedToCreateUser, "Failed to register user", map[logging.ExtraKey]any{
 			logging.ErrorMessage: err.Error(),
 			logging.Path:         c.Request.URL.Path,
 			logging.Method:       c.Request.Method,
 		})
-		responses.InternalServerError(c, "Failed to register user")
+		responses.BadRequest(c, err.Error(), nil)
 		return
 	}
 

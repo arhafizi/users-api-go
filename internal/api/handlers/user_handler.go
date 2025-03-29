@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"errors"
-	"net/http"
 	"strconv"
 
 	"example.com/api/internal/api/responses"
 	"example.com/api/internal/api/validation"
-	dbCtx "example.com/api/internal/repository/db"
+	dto "example.com/api/internal/contracts"
+	contracts "example.com/api/internal/contracts/errors"
 	"example.com/api/internal/services"
 	"example.com/api/pkg/logging"
 	"github.com/gin-gonic/gin"
@@ -27,7 +27,7 @@ func NewUserHandler(s services.IServiceManager, logger logging.ILogger) *UserHan
 }
 
 func (h *UserHandler) Create(c *gin.Context) {
-	var req dbCtx.CreateUserParams
+	var req dto.CreateUserReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Error(logging.Validation, logging.Api, "Invalid request body", map[logging.ExtraKey]any{
 			logging.ErrorMessage: err.Error(),
@@ -48,20 +48,36 @@ func (h *UserHandler) Create(c *gin.Context) {
 
 	user, err := h.service.User().Create(c.Request.Context(), req)
 	if err != nil {
-		h.logger.Error(logging.Internal, logging.FailedToCreateUser, "Failed to create user", map[logging.ExtraKey]any{
-			logging.ErrorMessage: err.Error(),
-			logging.Path:         c.Request.URL.Path,
-			logging.Method:       c.Request.Method,
-		})
-		responses.InternalServerError(c, "Failed to create user")
+		var (
+			usernameErr *contracts.UsernameExistsError
+			emailErr    *contracts.EmailExistsError
+		)
+
+		switch {
+		case errors.As(err, &usernameErr):
+			responses.BadRequest(c, "Username already in use", gin.H{
+				"username": usernameErr.Username,
+				"error":    usernameErr.Error(),
+			})
+		case errors.As(err, &emailErr):
+			responses.BadRequest(c, "Email already in use", gin.H{
+				"email": emailErr.Email,
+				"error": emailErr.Error(),
+			})
+		default:
+			h.logger.Error(logging.Internal, logging.FailedToCreateUser, "Failed to create user", map[logging.ExtraKey]any{
+				logging.ErrorMessage: err.Error(),
+				logging.Path:         c.Request.URL.Path,
+				logging.Method:       c.Request.Method,
+			})
+			responses.InternalServerError(c, "Failed to create user")
+		}
 		return
 	}
-
 	h.logger.Info(logging.Internal, logging.Api, "User created successfully", map[logging.ExtraKey]any{
 		logging.Path:   c.Request.URL.Path,
 		logging.Method: c.Request.Method,
 	})
-
 	responses.Created(c, "User created successfully", user)
 }
 
@@ -94,7 +110,7 @@ func (h *UserHandler) GetAll(c *gin.Context) {
 		return
 	}
 
-	users, err := h.service.User().GetAll(c.Request.Context(), dbCtx.ListUsersParams{
+	users, err := h.service.User().GetAll(c.Request.Context(), dto.ListUsersParams{
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})
@@ -113,7 +129,7 @@ func (h *UserHandler) UpdateFull(c *gin.Context) {
 		return
 	}
 
-	var req dbCtx.UpdateUserFullParams
+	var req dto.UpdateUserFullReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		responses.BadRequest(c, "Invalid request body", err)
 		return
@@ -140,7 +156,7 @@ func (h *UserHandler) UpdatePartial(c *gin.Context) {
 		return
 	}
 
-	var req dbCtx.UpdateUserPartialParams
+	var req dto.UpdateUserPartialReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		responses.BadRequest(c, "Invalid request body", err)
 		return
@@ -150,7 +166,7 @@ func (h *UserHandler) UpdatePartial(c *gin.Context) {
 	user, err := h.service.User().UpdatePartial(c.Request.Context(), req)
 	if err != nil {
 		if user == nil {
-			responses.NotFound(c, "User not found")
+			responses.BadRequest(c, err.Error(), nil)
 			return
 		}
 		responses.InternalServerError(c, "Failed to partially update user")
@@ -169,9 +185,13 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 
 	err = h.service.User().SoftDelete(c.Request.Context(), int32(id))
 	if err != nil {
+		if err.Error() == "user not found" {
+			responses.NotFound(c, "User not found")
+			return
+		}
 		responses.InternalServerError(c, "Failed to delete user")
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	responses.NoContent(c)
 }
