@@ -10,8 +10,8 @@ services:
     depends_on:
       postgres_container:
         condition: service_healthy
-      # redis_container:
-        # condition: service_started
+      redis_container:
+        condition: service_healthy
     networks:
       - app-network
     volumes:
@@ -36,9 +36,22 @@ services:
     ports:
       - "5432:5432"
 
-  # redis_container:
-  #   image: redis:7-alpine
-  #   command: redis-server --requirepass password
+  redis_container:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"  
+    command: redis-server --requirepass password
+    networks:
+      - app-network    
+    volumes:
+      - redis-data:/app/cache    
+    healthcheck:      
+      test: ["CMD", "redis-cli", "--raw", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    environment:
+      - REDIS_PASSWORD=password
   
   prometheus:
     image: prom/prometheus:latest
@@ -74,27 +87,11 @@ services:
     networks:
       - app-network
     
-  # grafana:
-  #   image: grafana/grafana:latest
-  #   ports:
-  #     - "3000:3000"
-  #   volumes:
-  #     - grafana_data:/var/lib/grafana
-  #   networks:
-  #     - app-network
-  #   depends_on:
-  #     - prometheus
-  #   environment:
-  #     - GF_SECURITY_ADMIN_PASSWORD=admin
-  #     - GF_SECURITY_ADMIN_USER=admin
-
 volumes:
   postgres-data:
   app-logs:  
   prometheus_data:
-  # grafana_data:    
-
-
+  redis-data: 
 
 networks:
   app-network:
