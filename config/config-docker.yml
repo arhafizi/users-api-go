@@ -23,7 +23,12 @@ redis:
   host: redis_container
   port: 6379
   password: password
-  db: 0
+  tokenStorage:
+    db: 0
+    keyPrefix: "token:"
+  cacheStorage:
+    db: 1 
+    keyPrefix: "cache:"
   dialTimeout: 5
   readTimeout: 5
   writeTimeout: 5
