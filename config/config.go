@@ -14,6 +14,7 @@ type Config struct {
 	Postgres PostgresConfig
 	Logger   LoggerConfig
 	JWT      JWTConfig
+	Redis    RedisConfig
 }
 
 type ServerConfig struct {
@@ -49,10 +50,17 @@ type JWTConfig struct {
 }
 
 type RedisConfig struct {
-	Host               string
-	Port               string
-	Password           string
-	Db                 string
+	Host         string
+	Port         string
+	Password     string
+	TokenStorage struct {
+		DB        int
+		KeyPrefix string
+	}
+	CacheStorage struct {
+		DB        int
+		KeyPrefix string
+	}
 	DialTimeout        time.Duration
 	ReadTimeout        time.Duration
 	WriteTimeout       time.Duration
