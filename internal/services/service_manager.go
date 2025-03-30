@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"example.com/api/internal/services/hashing"
+	"example.com/api/internal/storage"
+	"example.com/api/internal/storage/cache"
 )
 
 type IServiceManager interface {
@@ -11,4 +13,6 @@ type IServiceManager interface {
 	User() IUserService
 	Auth() IAuthService
 	Hash() hashing.IHashService
+	TokenStorage() storage.ITokenStorage
+	CacheStorage() cache.ICacheService
 }

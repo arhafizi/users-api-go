@@ -24,7 +24,7 @@ func main() {
 	db := dbConf.InitDb(conf, logger)
 
 	repoManager := repository.NewRepositoryManager(db)
-	serviceManager := services.NewServiceManager(repoManager, logger, conf.JWT)
+	serviceManager := services.NewServiceManager(repoManager, logger, *conf)
 
 	userHandler := handlers.NewUserHandler(serviceManager, logger)
 	authHandler := handlers.NewAuthHandler(serviceManager.Auth(), logger)
@@ -40,7 +40,7 @@ func main() {
 	routes.SetupMetricsRoutes(app)
 	routes.SetupAuthRoutes(app, authHandler)
 	protected := app.Group("/api")
-	protected.Use(middlewares.AuthV2Middleware(conf.JWT.Secret))
+	protected.Use(middlewares.AuthMiddleware(serviceManager.Auth()))
 	routes.SetupUserRoutes(protected, userHandler)
 
 	monitorSystemMetrics()

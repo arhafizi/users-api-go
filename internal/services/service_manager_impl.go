@@ -6,45 +6,76 @@ import (
 	"example.com/api/config"
 	"example.com/api/internal/repository"
 	"example.com/api/internal/services/hashing"
+	"example.com/api/internal/storage"
+	"example.com/api/internal/storage/cache"
 	"example.com/api/pkg/logging"
 )
 
 type ServiceManager struct {
-	repoManager repository.IRepositoryManager
-	logger      logging.ILogger
-	jwtConfig   config.JWTConfig
-	userSvc     IUserService
-	authSvc     IAuthService
-	hashSvc     hashing.IHashService
+	repoManager  repository.IRepositoryManager
+	logger       logging.ILogger
+	config       config.Config
+	user         IUserService
+	auth         IAuthService
+	hash         hashing.IHashService
+	tokenStorage storage.ITokenStorage
+	cacheStorage cache.ICacheService
 }
 
-func NewServiceManager(r repository.IRepositoryManager, l logging.ILogger, jwt config.JWTConfig) IServiceManager {
+func NewServiceManager(
+	r repository.IRepositoryManager,
+	l logging.ILogger,
+	cfg config.Config,
+) IServiceManager {
+
 	return &ServiceManager{
 		repoManager: r,
 		logger:      l,
-		jwtConfig:   jwt,
+		config:      cfg,
 	}
 }
 
 func (s *ServiceManager) User() IUserService {
-	if s.userSvc == nil {
-		s.userSvc = NewUserService(s.repoManager, s.logger, s.Hash())
+	if s.user == nil {
+		s.user = NewUserService(s.repoManager, s.logger, s.Hash())
 	}
-	return s.userSvc
+	return s.user
 }
 
 func (s *ServiceManager) Auth() IAuthService {
-	if s.authSvc == nil {
-		s.authSvc = NewAuthService(s.jwtConfig, s.Hash(), s.User(), s.logger)
+	if s.auth == nil {
+		s.auth = NewAuthService(
+			s.config.JWT,
+			s.Hash(),
+			s.User(),
+			s.logger,
+			s.TokenStorage(),
+		)
 	}
-	return s.authSvc
+	return s.auth
 }
 
 func (s *ServiceManager) Hash() hashing.IHashService {
-	if s.hashSvc == nil {
-		s.hashSvc = hashing.New()
+	if s.hash == nil {
+		s.hash = hashing.New()
 	}
-	return s.hashSvc
+	return s.hash
+}
+
+func (s *ServiceManager) TokenStorage() storage.ITokenStorage {
+	if s.tokenStorage == nil {
+		tokenRedis := storage.NewRedisClient(&s.config.Redis, s.config.Redis.TokenStorage.DB)
+		s.tokenStorage = storage.NewRedisTokenStorage(tokenRedis, s.config.Redis.TokenStorage.KeyPrefix)
+	}
+	return s.tokenStorage
+}
+
+func (s *ServiceManager) CacheStorage() cache.ICacheService {
+	if s.cacheStorage == nil {
+		cacheRedis := storage.NewRedisClient(&s.config.Redis, s.config.Redis.CacheStorage.DB)
+		s.cacheStorage = cache.NewRedisCache(cacheRedis, s.config.Redis.CacheStorage.KeyPrefix)
+	}
+	return s.cacheStorage
 }
 
 func (s *ServiceManager) WithTransaction(ctx context.Context, fn func(txService IServiceManager) error) (err error) {
@@ -54,7 +85,7 @@ func (s *ServiceManager) WithTransaction(ctx context.Context, fn func(txService 
 	}
 
 	// Create a transactional ServiceManager instance that uses the transactional RepositoryManager.
-	txService := NewServiceManager(txRepo, s.logger, s.jwtConfig)
+	txService := NewServiceManager(txRepo, s.logger, s.config)
 
 	// Defer commit/rollback logic.
 	defer func() {
@@ -75,22 +106,3 @@ func (s *ServiceManager) WithTransaction(ctx context.Context, fn func(txService 
 	err = fn(txService)
 	return err
 }
-
-// func (s *UserService) CreateUserWithProfile(ctx context.Context, userParams dbCtx.CreateUserParams, profileParams dbCtx.CreateProfileParams) error {
-//     return s.serviceManager.WithTransaction(ctx, func(txService IServiceManager) error {
-//         // Create user using the transactional context.
-//         _, err := txService.User().Create(ctx, userParams)
-//         if err != nil {
-//             return err
-//         }
-
-//         // Example: Create profile using the same transactional context.
-//         // (Assuming txService.Profile() is implemented similarly.)
-//         if err := txService.Profile().Create(ctx, profileParams); err != nil {
-//             return err
-//         }
-
-//         // All operations share the same transaction: commit if nil is returned.
-//         return nil
-//     })
-// }
