@@ -55,14 +55,12 @@ func (h *UserHandler) Create(c *gin.Context) {
 
 		switch {
 		case errors.As(err, &usernameErr):
-			responses.BadRequest(c, "Username already in use", gin.H{
-				"username": usernameErr.Username,
-				"error":    usernameErr.Error(),
+			responses.Conflict(c, "Username already in use", gin.H{
+				"info": usernameErr.Error(),
 			})
 		case errors.As(err, &emailErr):
-			responses.BadRequest(c, "Email already in use", gin.H{
-				"email": emailErr.Email,
-				"error": emailErr.Error(),
+			responses.Conflict(c, "Email already in use", gin.H{
+				"info": emailErr.Error(),
 			})
 		default:
 			h.logger.Error(logging.Internal, logging.FailedToCreateUser, "Failed to create user", map[logging.ExtraKey]any{
@@ -139,7 +137,7 @@ func (h *UserHandler) UpdateFull(c *gin.Context) {
 	user, err := h.service.User().UpdateFull(c.Request.Context(), req)
 	if err != nil {
 		if user == nil {
-			responses.NotFound(c, "User not found")
+			responses.BadRequest(c, "Failed to fully update user", err.Error())
 			return
 		}
 		responses.InternalServerError(c, "Failed to update user")
@@ -166,7 +164,7 @@ func (h *UserHandler) UpdatePartial(c *gin.Context) {
 	user, err := h.service.User().UpdatePartial(c.Request.Context(), req)
 	if err != nil {
 		if user == nil {
-			responses.BadRequest(c, err.Error(), nil)
+			responses.BadRequest(c, "Failed to partially update user", err.Error())
 			return
 		}
 		responses.InternalServerError(c, "Failed to partially update user")

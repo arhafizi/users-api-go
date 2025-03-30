@@ -105,38 +105,14 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	claims, err := h.authService.ValidateToken(req.RefreshToken)
+	accessToken, refreshToken, err := h.authService.RotateTokens(c.Request.Context(), req.RefreshToken)
 	if err != nil {
-		responses.Unauthorized(c, "Invalid refresh token")
-		return
-	}
-
-	// Ensure the token is a refresh token.
-	if tokenType, ok := claims["token_type"].(string); !ok || tokenType != "refresh" {
-		responses.Unauthorized(c, "Token provided is not a valid refresh token")
-		return
-	}
-
-	userID, ok := claims["user_id"].(string)
-	if !ok {
-		responses.Unauthorized(c, "Token provided is not a valid refresh token")
-		return
-	}
-
-	newAccess, err := h.authService.GenerateAccessToken(userID)
-	if err != nil {
-		responses.InternalServerError(c, "Failed to generate access token")
-		return
-	}
-
-	newRefresh, err := h.authService.GenerateRefreshToken(userID)
-	if err != nil {
-		responses.InternalServerError(c, "Failed to generate refresh token")
+		responses.Unauthorized(c, err.Error())
 		return
 	}
 
 	responses.OK(c, "Tokens refreshed successfully", gin.H{
-		"access_token":  newAccess,
-		"refresh_token": newRefresh,
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
 	})
 }

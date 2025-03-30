@@ -71,6 +71,14 @@ func Forbidden(c *gin.Context, message string) {
 	})
 }
 
+func Conflict(c *gin.Context, message string, err any) {
+	c.JSON(http.StatusConflict, BaseResponse{
+		Status:  "error",
+		Message: message,
+		Errors:  err,
+	})
+}
+
 func NoContent(c *gin.Context) {
 	c.JSON(http.StatusNoContent, nil)
 }
