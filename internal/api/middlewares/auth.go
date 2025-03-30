@@ -1,60 +1,32 @@
 package middlewares
 
 import (
-	"errors"
 	"strings"
 
 	"example.com/api/internal/api/responses"
+	"example.com/api/internal/services"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
 
-func AuthMiddleware(secretKey string) gin.HandlerFunc {
+func AuthMiddleware(authService services.IAuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			responses.Unauthorized(c, "Authorization header is required")
+		tokenString := extractToken(c)
+		if tokenString == "" {
+			responses.Unauthorized(c, "Authentication required: no token provided")
 			c.Abort()
 			return
 		}
 
-		bearerToken := strings.Split(authHeader, " ")
-		if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
-			responses.Unauthorized(c, "Invalid token format")
-			c.Abort()
-			return
-		}
-
-		tokenString := bearerToken[1]
-
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, errors.New("invalid signing method")
-			}
-			return []byte(secretKey), nil
-		})
-
+		claims, err := authService.ValidateAccessToken(tokenString)
 		if err != nil {
-			if errors.Is(err, jwt.ErrTokenExpired) {
-				println("here :::: ", err.Error())
-				responses.Unauthorized(c, "Token expired")
-			} else {
-				responses.Unauthorized(c, "Invalid token")
-			}
+			responses.Unauthorized(c, err.Error())
 			c.Abort()
 			return
 		}
 
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok || !token.Valid {
-			responses.Unauthorized(c, "Invalid token claims")
-			c.Abort()
-			return
-		}
-
-		userID, exists := claims["sub"].(string)
-		if !exists {
-			responses.Unauthorized(c, "Missing sub claim")
+		userID, ok := claims["sub"].(string)
+		if !ok {
+			responses.Unauthorized(c, "Invalid token: missing or invalid sub claim")
 			c.Abort()
 			return
 		}
@@ -62,4 +34,16 @@ func AuthMiddleware(secretKey string) gin.HandlerFunc {
 		c.Set("user_id", userID)
 		c.Next()
 	}
+}
+
+func extractToken(c *gin.Context) string {
+	if authHeader := c.GetHeader("Authorization"); authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		return strings.TrimPrefix(authHeader, "Bearer ")
+	}
+
+	if cookie, err := c.Cookie("token"); err == nil && cookie != "" {
+		return cookie
+	}
+
+	return ""
 }
