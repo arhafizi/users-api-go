@@ -13,7 +13,13 @@ type IAuthService interface {
 
 	GenerateRefreshToken(userID string) (string, error)
 
-	ValidateToken(tokenString string) (jwt.MapClaims, error)
+	ValidateToken(tokenString string, expectedType string) (jwt.MapClaims, error)
+
+	ValidateAccessToken(tokenString string) (jwt.MapClaims, error)
+
+	ValidateRefreshToken(ctx context.Context, tokenString string) (jwt.MapClaims, error)
+
+	RotateTokens(ctx context.Context, refreshToken string) (string, string, error)
 
 	Authenticate(ctx context.Context, email, password string) (*dbCtx.User, error)
 
