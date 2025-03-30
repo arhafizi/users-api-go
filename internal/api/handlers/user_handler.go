@@ -136,11 +136,30 @@ func (h *UserHandler) UpdateFull(c *gin.Context) {
 	req.ID = int32(id)
 	user, err := h.service.User().UpdateFull(c.Request.Context(), req)
 	if err != nil {
-		if user == nil {
-			responses.BadRequest(c, "Failed to fully update user", err.Error())
-			return
+		var (
+			usernameErr *contracts.UsernameExistsError
+			emailErr    *contracts.EmailExistsError
+		)
+
+		switch {
+		case errors.As(err, &usernameErr):
+			responses.Conflict(c, "Username already in use", gin.H{
+				"info": usernameErr.Error(),
+			})
+		case errors.As(err, &emailErr):
+			responses.Conflict(c, "Email already in use", gin.H{
+				"info": emailErr.Error(),
+			})
+		case err.Error() == "user not found":
+			responses.NotFound(c, "User not found")
+		default:
+			h.logger.Error(logging.Internal, logging.Update, "Failed to update user", map[logging.ExtraKey]any{
+				logging.ErrorMessage: err.Error(),
+				logging.Path:         c.Request.URL.Path,
+				logging.Method:       c.Request.Method,
+			})
+			responses.InternalServerError(c, "Failed to update user")
 		}
-		responses.InternalServerError(c, "Failed to update user")
 		return
 	}
 
@@ -163,15 +182,34 @@ func (h *UserHandler) UpdatePartial(c *gin.Context) {
 	req.ID = int32(id)
 	user, err := h.service.User().UpdatePartial(c.Request.Context(), req)
 	if err != nil {
-		if user == nil {
-			responses.BadRequest(c, "Failed to partially update user", err.Error())
-			return
+		var (
+			usernameErr *contracts.UsernameExistsError
+			emailErr    *contracts.EmailExistsError
+		)
+
+		switch {
+		case errors.As(err, &usernameErr):
+			responses.Conflict(c, "Username already in use", gin.H{
+				"info": usernameErr.Error(),
+			})
+		case errors.As(err, &emailErr):
+			responses.Conflict(c, "Email already in use", gin.H{
+				"info": emailErr.Error(),
+			})
+		case err.Error() == "user not found":
+			responses.NotFound(c, "User not found")
+		default:
+			h.logger.Error(logging.Internal, logging.Update, "Failed to update user", map[logging.ExtraKey]any{
+				logging.ErrorMessage: err.Error(),
+				logging.Path:         c.Request.URL.Path,
+				logging.Method:       c.Request.Method,
+			})
+			responses.InternalServerError(c, "Failed to update user")
 		}
-		responses.InternalServerError(c, "Failed to partially update user")
 		return
 	}
 
-	responses.OK(c, "User partially updated successfully", user)
+	responses.OK(c, "User updated successfully", user)
 }
 
 func (h *UserHandler) DeleteUser(c *gin.Context) {

@@ -166,6 +166,27 @@ func (s *UserService) UpdateFull(ctx context.Context, arg dto.UpdateUserFullReq)
 
 	user, err := s.repo.User().UpdateFull(ctx, params)
 	if err != nil {
+		metrics.DbCall.WithLabelValues("User", "UpdateFull", "error").Inc()
+
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			switch pqErr.Constraint {
+			case "users_username_key":
+				s.logger.Warn(
+					logging.Validation, logging.Update, "Username already exists",
+					map[logging.ExtraKey]any{logging.RequestBody: arg.Username},
+				)
+				return nil, &contracts.UsernameExistsError{Username: arg.Username}
+
+			case "users_email_key":
+				s.logger.Warn(
+					logging.Validation, logging.Update, "Email already exists",
+					map[logging.ExtraKey]any{logging.RequestBody: arg.Email},
+				)
+				return nil, &contracts.EmailExistsError{Email: arg.Email}
+			}
+		}
+
 		if errors.Is(err, sql.ErrNoRows) {
 			s.logger.Error(
 				logging.Postgres, logging.Update, "User not found",
@@ -176,6 +197,7 @@ func (s *UserService) UpdateFull(ctx context.Context, arg dto.UpdateUserFullReq)
 			)
 			return nil, errors.New("user not found")
 		}
+
 		s.logger.Error(
 			logging.Postgres, logging.Update, "Failed to update user",
 			map[logging.ExtraKey]any{
@@ -183,8 +205,10 @@ func (s *UserService) UpdateFull(ctx context.Context, arg dto.UpdateUserFullReq)
 				"userID":             arg.ID,
 			},
 		)
-		return nil, errors.New("failed to update user")
+		return nil, fmt.Errorf("failed to update user: %w", err)
 	}
+
+	metrics.DbCall.WithLabelValues("User", "UpdateFull", "success").Inc()
 	return &user, nil
 }
 
@@ -192,12 +216,32 @@ func (s *UserService) UpdatePartial(ctx context.Context, arg dto.UpdateUserParti
 	if arg.Password != nil && *arg.Password != "" {
 		hashedPassword, _ := s.hashService.Hash(*arg.Password)
 		arg.Password = &hashedPassword
-
 	}
 	params := mapUpdateUserPartialReqToParams(arg)
 
 	user, err := s.repo.User().UpdatePartial(ctx, params)
 	if err != nil {
+		metrics.DbCall.WithLabelValues("User", "UpdatePartial", "error").Inc()
+
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			switch pqErr.Constraint {
+			case "users_username_key":
+				s.logger.Warn(
+					logging.Validation, logging.Update, "Username already exists",
+					map[logging.ExtraKey]any{logging.RequestBody: arg.Username},
+				)
+				return nil, &contracts.UsernameExistsError{Username: *arg.Username}
+
+			case "users_email_key":
+				s.logger.Warn(
+					logging.Validation, logging.Update, "Email already exists",
+					map[logging.ExtraKey]any{logging.RequestBody: arg.Email},
+				)
+				return nil, &contracts.EmailExistsError{Email: *arg.Email}
+			}
+		}
+
 		if errors.Is(err, sql.ErrNoRows) {
 			s.logger.Error(
 				logging.Postgres, logging.Update, "User not found",
@@ -208,15 +252,18 @@ func (s *UserService) UpdatePartial(ctx context.Context, arg dto.UpdateUserParti
 			)
 			return nil, errors.New("user not found")
 		}
+
 		s.logger.Error(
-			logging.Postgres, logging.Update, "Failed to partially update user",
+			logging.Postgres, logging.Update, "Failed to update user",
 			map[logging.ExtraKey]any{
 				logging.ErrorMessage: err.Error(),
 				"userID":             arg.ID,
 			},
 		)
-		return nil, errors.New("failed to update user")
+		return nil, fmt.Errorf("failed to update user: %w", err)
 	}
+
+	metrics.DbCall.WithLabelValues("User", "UpdatePartial", "success").Inc()
 	return &user, nil
 }
 
