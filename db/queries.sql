@@ -44,3 +44,15 @@ SELECT * FROM users
 WHERE deleted_at IS NULL
 ORDER BY id
 LIMIT $1 OFFSET $2;
+
+-- name: CreateMessage :one
+INSERT INTO messages (sender_id, content)
+VALUES ($1, $2)
+RETURNING *;
+
+-- name: GetMessages :many
+SELECT m.*, u.username as sender_name 
+FROM messages m
+JOIN users u ON m.sender_id = u.id
+ORDER BY m.created_at DESC
+LIMIT $1 OFFSET $2;
