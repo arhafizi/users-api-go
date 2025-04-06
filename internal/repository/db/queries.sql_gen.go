@@ -7,7 +7,31 @@ package dbCtx
 
 import (
 	"context"
+	"database/sql"
 )
+
+const createMessage = `-- name: CreateMessage :one
+INSERT INTO messages (sender_id, content)
+VALUES ($1, $2)
+RETURNING id, sender_id, content, created_at
+`
+
+type CreateMessageParams struct {
+	SenderID int32  `db:"sender_id" json:"senderId"`
+	Content  string `db:"content" json:"content"`
+}
+
+func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error) {
+	row := q.db.QueryRowContext(ctx, createMessage, arg.SenderID, arg.Content)
+	var i Message
+	err := row.Scan(
+		&i.ID,
+		&i.SenderID,
+		&i.Content,
+		&i.CreatedAt,
+	)
+	return i, err
+}
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, full_name, password_hash)
@@ -42,6 +66,56 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const getMessages = `-- name: GetMessages :many
+SELECT m.id, m.sender_id, m.content, m.created_at, u.username as sender_name 
+FROM messages m
+JOIN users u ON m.sender_id = u.id
+ORDER BY m.created_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type GetMessagesParams struct {
+	Limit  int32 `db:"limit" json:"limit"`
+	Offset int32 `db:"offset" json:"offset"`
+}
+
+type GetMessagesRow struct {
+	ID         int32        `db:"id" json:"id"`
+	SenderID   int32        `db:"sender_id" json:"senderId"`
+	Content    string       `db:"content" json:"content"`
+	CreatedAt  sql.NullTime `db:"created_at" json:"createdAt"`
+	SenderName string       `db:"sender_name" json:"senderName"`
+}
+
+func (q *Queries) GetMessages(ctx context.Context, arg GetMessagesParams) ([]GetMessagesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getMessages, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMessagesRow
+	for rows.Next() {
+		var i GetMessagesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SenderID,
+			&i.Content,
+			&i.CreatedAt,
+			&i.SenderName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
