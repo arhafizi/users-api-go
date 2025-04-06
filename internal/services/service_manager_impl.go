@@ -5,6 +5,7 @@ import (
 
 	"example.com/api/config"
 	"example.com/api/internal/repository"
+	"example.com/api/internal/services/chat"
 	"example.com/api/internal/services/hashing"
 	"example.com/api/internal/storage"
 	"example.com/api/internal/storage/cache"
@@ -16,6 +17,7 @@ type ServiceManager struct {
 	logger       logging.ILogger
 	config       config.Config
 	user         IUserService
+	chat         chat.IChatService
 	auth         IAuthService
 	hash         hashing.IHashService
 	tokenStorage storage.ITokenStorage
@@ -40,6 +42,13 @@ func (s *ServiceManager) User() IUserService {
 		s.user = NewUserService(s.repoManager, s.logger, s.Hash())
 	}
 	return s.user
+}
+
+func (s *ServiceManager) Chat() chat.IChatService {
+	if s.chat == nil {
+		s.chat = chat.NewChatService(s.repoManager, s.logger)
+	}
+	return s.chat
 }
 
 func (s *ServiceManager) Auth() IAuthService {
