@@ -37,12 +37,22 @@ func AuthMiddleware(authService services.IAuthService) gin.HandlerFunc {
 }
 
 func extractToken(c *gin.Context) string {
-	if authHeader := c.GetHeader("Authorization"); authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
-		return strings.TrimPrefix(authHeader, "Bearer ")
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token != "" {
+			return token
+		}
 	}
 
 	if cookie, err := c.Cookie("token"); err == nil && cookie != "" {
 		return cookie
+	}
+
+	if c.Request.URL.Path == "/api/chat/ws" {
+		if queryToken := c.Query("token"); queryToken != "" {
+			return queryToken
+		}
 	}
 
 	return ""
