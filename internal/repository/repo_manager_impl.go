@@ -12,6 +12,7 @@ import (
 type RepositoryManager struct {
 	db       dbCtx.DBTX
 	userRepo IUserRepo
+	chatRepo IChatRepo
 }
 
 func NewRepositoryManager(db dbCtx.DBTX) IRepositoryManager {
@@ -59,4 +60,11 @@ func (r *RepositoryManager) User() IUserRepo {
 		r.userRepo = NewUserRepo(r.db)
 	}
 	return r.userRepo
+}
+
+func (r *RepositoryManager) Chat() IChatRepo {
+	if r.chatRepo == nil {
+		r.chatRepo = NewChatRepo(r.db)
+	}
+	return r.chatRepo
 }
