@@ -12,6 +12,7 @@ import (
 	"example.com/api/internal/api/routes"
 	"example.com/api/internal/repository"
 	"example.com/api/internal/services"
+	"example.com/api/internal/services/chat"
 	"example.com/api/pkg/logging"
 	"example.com/api/pkg/metrics"
 	"github.com/gin-gonic/gin"
@@ -33,7 +34,9 @@ func main() {
 	app.Use(
 		gin.Recovery(),
 		middlewares.LoggingMiddleware(logger),
-		middlewares.PrometheusMiddleware())
+		middlewares.PrometheusMiddleware(),
+		middlewares.CORS(),
+	)
 
 	app.SetTrustedProxies([]string{"127.0.0.1"})
 
@@ -42,6 +45,12 @@ func main() {
 	protected := app.Group("/api")
 	protected.Use(middlewares.AuthMiddleware(serviceManager.Auth()))
 	routes.SetupUserRoutes(protected, userHandler)
+
+	hub := chat.NewHub()
+	go hub.Run()
+
+	chatHandler := handlers.NewChatHandler(hub, serviceManager, logger)
+	routes.SetupChatRoutes(protected, chatHandler)
 
 	monitorSystemMetrics()
 
