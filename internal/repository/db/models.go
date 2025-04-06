@@ -8,6 +8,13 @@ import (
 	"database/sql"
 )
 
+type Message struct {
+	ID        int32        `db:"id" json:"id"`
+	SenderID  int32        `db:"sender_id" json:"senderId"`
+	Content   string       `db:"content" json:"content"`
+	CreatedAt sql.NullTime `db:"created_at" json:"createdAt"`
+}
+
 type SchemaMigration struct {
 	Version string `db:"version" json:"version"`
 }
