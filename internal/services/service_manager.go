@@ -1,8 +1,6 @@
 package services
 
 import (
-	"context"
-
 	"example.com/api/internal/services/chat"
 	"example.com/api/internal/services/hashing"
 	"example.com/api/internal/storage"
@@ -10,7 +8,6 @@ import (
 )
 
 type IServiceManager interface {
-	WithTransaction(ctx context.Context, fn func(txService IServiceManager) error) (err error)
 	User() IUserService
 	Chat() chat.IChatService
 	Auth() IAuthService

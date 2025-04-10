@@ -1,8 +1,6 @@
 package services
 
 import (
-	"context"
-
 	"example.com/api/config"
 	"example.com/api/internal/repository"
 	"example.com/api/internal/services/chat"
@@ -85,33 +83,4 @@ func (s *ServiceManager) CacheStorage() cache.ICacheService {
 		s.cacheStorage = cache.NewRedisCache(cacheRedis, s.config.Redis.CacheStorage.KeyPrefix)
 	}
 	return s.cacheStorage
-}
-
-func (s *ServiceManager) WithTransaction(ctx context.Context, fn func(txService IServiceManager) error) (err error) {
-	txRepo, err := s.repoManager.BeginTx(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Create a transactional ServiceManager instance that uses the transactional RepositoryManager.
-	txService := NewServiceManager(txRepo, s.logger, s.config)
-
-	// Defer commit/rollback logic.
-	defer func() {
-		if p := recover(); p != nil {
-			// Roll back on panic and re-panic.
-			_ = txRepo.Rollback()
-			panic(p)
-		} else if err != nil {
-			if rbErr := txRepo.Rollback(); rbErr != nil {
-				s.logger.Errorf("Transaction rollback error: %v", rbErr)
-			}
-		} else {
-			err = txRepo.Commit()
-		}
-	}()
-
-	// Execute the provided transactional function.
-	err = fn(txService)
-	return err
 }

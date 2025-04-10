@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 
 	dbCtx "example.com/api/internal/repository/db"
 )
@@ -21,38 +20,31 @@ func NewRepositoryManager(db dbCtx.DBTX) IRepositoryManager {
 	}
 }
 
-func (r *RepositoryManager) BeginTx(ctx context.Context) (IRepositoryManager, error) {
-	if _, ok := r.db.(*sql.Tx); ok {
-		return nil, errors.New("already in a transaction; nested transactions are not supported")
-	}
-
-	db, ok := r.db.(*sql.DB)
+func (rm *RepositoryManager) WithTx(ctx context.Context, fn func(IRepositoryManager) error) error {
+	db, ok := rm.db.(*sql.DB)
 	if !ok {
-		return nil, errors.New("BeginTx: underlying db is not *sql.DB")
+		return errors.New("WithTx requires a *sql.DB as the base connection")
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("BeginTx: %w", err)
+		return err
 	}
 
-	return NewRepositoryManager(tx), nil
-}
+	txRepoMgr := NewRepositoryManager(tx)
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		}
+	}()
 
-func (r *RepositoryManager) Commit() error {
-	tx, ok := r.db.(*sql.Tx)
-	if !ok {
-		return errors.New("Commit: not operating in a transaction")
+	if err := fn(txRepoMgr); err != nil {
+		return err
 	}
 	return tx.Commit()
-}
-
-func (r *RepositoryManager) Rollback() error {
-	tx, ok := r.db.(*sql.Tx)
-	if !ok {
-		return errors.New("Rollback: not operating in a transaction")
-	}
-	return tx.Rollback()
 }
 
 func (r *RepositoryManager) User() IUserRepo {
