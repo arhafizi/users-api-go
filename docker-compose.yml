@@ -15,8 +15,7 @@ services:
     networks:
       - app-network
     volumes:
-      - app-logs:/app/logs
-
+      - ./logs:/app/logs
   postgres_container:
     image: postgres:16-alpine
     environment:
@@ -89,7 +88,7 @@ services:
     
 volumes:
   postgres-data:
-  app-logs:  
+  app-logs: 
   prometheus_data:
   redis-data: 
 
