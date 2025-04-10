@@ -335,3 +335,20 @@ func mapUserToResponse(user dbCtx.User) dto.UserResponse {
 		// DeletedAt: deletedAt,
 	}
 }
+
+// example of a transaction
+func (s *UserService) UpdateUserTx(ctx context.Context, args dbCtx.UpdateUserFullParams) (*dbCtx.User, error) {
+	var updatedUser dbCtx.User
+	err := s.repo.WithTx(ctx, func(txRM repository.IRepositoryManager) error {
+		user, err := txRM.User().UpdateFull(ctx, args)
+		if err != nil {
+			return err
+		}
+		updatedUser = user
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &updatedUser, nil
+}
