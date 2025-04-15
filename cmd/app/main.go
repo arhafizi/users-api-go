@@ -36,6 +36,8 @@ func main() {
 		middlewares.LoggingMiddleware(logger),
 		middlewares.PrometheusMiddleware(),
 		middlewares.CORS(),
+		middlewares.RateLimiter(),
+		middlewares.Secure,
 	)
 
 	app.SetTrustedProxies([]string{"127.0.0.1"})
