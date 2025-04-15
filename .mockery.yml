@@ -1,0 +1,33 @@
+all: false
+formatter: goimports
+log-level: info
+pkgname: mocks
+recursive: true
+template: testify
+
+packages:
+  ./internal/repository:
+    config:
+      all: true
+      dir: ./tests/unit/mocks/repositories 
+      filename: '{{ .InterfaceName | trimPrefix "I" | camelcase }}_mock.go'
+      structname: Mock{{ .InterfaceName | trimPrefix "I" }}
+
+  ./internal/services:
+    config:
+      all: true
+      dir: ./tests/unit/mocks/services 
+      filename: '{{ .InterfaceName | trimPrefix "I" | camelcase }}_mock.go'
+      structname: Mock{{ .InterfaceName | trimPrefix "I" }}
+  ./internal/services/hashing:
+    config:
+      all: true
+      dir: ./tests/unit/mocks/services 
+      filename: '{{ .InterfaceName | trimPrefix "I" | camelcase }}_mock.go'
+      structname: Mock{{ .InterfaceName | trimPrefix "I" }}
+  ./pkg/logging:
+    config:
+      all: true
+      dir: ./tests/unit/mocks/services  
+      filename: '{{ .InterfaceName | trimPrefix "I" | camelcase }}_mock.go'
+      structname: Mock{{ .InterfaceName | trimPrefix "I" }}
